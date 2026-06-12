@@ -1,0 +1,6 @@
+Method,Marginal FNR,Worst-site FNR,Worst Site,Sites Violating α,N Sites,Mean Set Size (stretch)
+B1_centralized,0.0992,0.1412,5,4,8,1.439
+B2_per_site,0.0483,0.1012,1,1,8,46.819
+B3_naive_pooled,0.0992,0.1412,5,4,8,1.439
+Ours_per_site,0.0483,0.1012,1,1,8,46.819
+Ours_shared,0.0,0.0,,0,8,140.897

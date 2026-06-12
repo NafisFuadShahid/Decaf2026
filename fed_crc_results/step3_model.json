@@ -1,0 +1,16 @@
+{
+  "model_name": "segresnet_bundle",
+  "device": "cuda",
+  "sw_overlap": 0.25,
+  "roi_size": [
+    128,
+    128,
+    128
+  ],
+  "vram_gb": 8.589410304,
+  "n_out_channels": 3,
+  "model_ok": true,
+  "fallbacks": [],
+  "errors": [],
+  "architecture": "SegResNet"
+}

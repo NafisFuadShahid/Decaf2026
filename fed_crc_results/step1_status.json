@@ -1,0 +1,12 @@
+{
+  "data_source": "MSD_Task01_BrainTumour",
+  "partition_source": "synthetic",
+  "data_dir": "C:/DeCaf/data/Task01_BrainTumour",
+  "partition_csv": null,
+  "fallbacks": [
+    "Synapse returned no NIfTI files",
+    "Synapse failed \u2014 using MSD fallback",
+    "No real partition CSV \u2014 will use synthetic partitions"
+  ],
+  "errors": []
+}

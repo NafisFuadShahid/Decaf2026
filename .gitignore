@@ -1,0 +1,27 @@
+# Large datasets — not tracked
+data/
+
+# Model weights (large binaries — re-download via scripts)
+models/model_weights.pt
+models/brats_mri_segmentation/models/
+models/brats_mri_segmentation/.cache/
+
+# Binary result artifacts
+**/*.pkl
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
