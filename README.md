@@ -54,50 +54,7 @@ See Figure 2 (results/figures/figure2_paper_final.pdf) for the per-institution F
 
 ---
 
-## Repository Structure
 
-```
-Fed-CRC-Seg/
-├── README.md
-├── LICENSE
-├── requirements.txt
-│
-├── scripts/
-│   ├── 01_download_data.py      # Download FeTS-2022 from Synapse + partition CSV
-│   ├── 02_prepare_partitions.py # Parse partitioning_1.csv, map subjects to sites
-│   ├── 03_download_model.py     # Download pre-trained SegResNet (MONAI bundle)
-│   ├── 04_run_inference.py      # Run inference on all subjects → volume_scores.pkl
-│   ├── 05_crc_calibration.py   # CRC: fine 200-pt grid, 3 seeds, B1/B2/B3/Ours
-│   ├── 05b_loo_corrections.py  # LOO + Hoeffding/Bernstein correction variants
-│   ├── 06_loso_ablations.py    # LOSO-CV n0 selection, λ_fed, corr_k, grid ablations
-│   ├── 07_budget_allocation.py  # Budget allocation baseline
-│   ├── 08_generate_figures.py   # All paper figures (LNCS Springer format)
-│   └── run_all.py               # End-to-end pipeline runner
-│
-├── results/
-│   ├── tables/                  # CSV result files for all tables
-│   │   ├── all_methods_aggregated.csv   # Table 1 source (phase4 fine-grid)
-│   │   ├── task1_loso_n0.csv           # LOSO-CV n0 sweep
-│   │   ├── task2_lambda_fed.csv        # λ_fed conservative threshold
-│   │   ├── task3a_corr_ablation.csv    # corr_k ablation
-│   │   ├── task3b_grid_ablation.csv    # Grid resolution ablation
-│   │   ├── budget_comparison.csv       # Budget allocation comparison
-│   │   └── per_institution_fets.csv    # Per-institution breakdown
-│   ├── figures/                 # All generated figures
-│   │   ├── figure2_paper_final.pdf/png  # Final submission figures
-│   │   └── n0_sweep_paper_final.pdf/png
-│   ├── pipeline_status/         # JSON sentinels from each pipeline step
-│   └── LOSO_AND_ABLATION_RESULTS.md
-│
-├── models/                      # Model weights — gitignored; re-download via 03
-│   └── brats_mri_segmentation/
-│
-├── data/                        # FeTS-2022 data — gitignored; re-download via 01
-│
-└── archive/                     # Development-phase scripts; not needed for reproduction
-```
-
----
 
 ## Reproduction Instructions
 
@@ -247,21 +204,6 @@ Steps 1–3 are skipped automatically if their sentinel files already exist in `
 
 ---
 
-## Citation
-
-```bibtex
-@inproceedings{shahid2026fedcrc,
-  title     = {When Calibration Fails the Vulnerable Hospital:
-               Federated Conformal Risk Control via Risk-Curve Shrinkage},
-  author    = {Shahid, Nafis Fuad},
-  booktitle = {MICCAI Workshop on Distributed, Collaborative, and Federated
-               Learning (DeCaF)},
-  year      = {2026},
-  note      = {arXiv preprint arXiv:XXXX.XXXXX}
-}
-```
-
----
 
 ## License
 
