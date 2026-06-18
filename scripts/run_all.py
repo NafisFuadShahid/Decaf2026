@@ -1,109 +1,93 @@
-"""Master runner: executes all pipeline steps in sequence with error recovery."""
+"""
+Fed-CRC-Seg end-to-end pipeline runner (DeCaF 2026).
+
+Runs all 8 steps in sequence. Steps 01–03 are skipped automatically if their
+outputs already exist (idempotent). Steps 04–08 always run to allow re-running
+calibration experiments without repeating inference.
+
+Usage:
+  python scripts/run_all.py
+
+Prerequisites: see README.md — data and model must be downloaded first, or set
+SYNAPSE_AUTH_TOKEN and let step 01 handle it.
+"""
 import subprocess
 import sys
 import os
-import json
 from pathlib import Path
 
-PY = r"C:\Users\fuadn\anaconda3\python.exe"
-SCRIPTS = Path("C:/DeCaf/scripts")
-RESULTS = Path("C:/DeCaf/fed_crc_results")
-RESULTS.mkdir(parents=True, exist_ok=True)
+PY = sys.executable  # use whichever python launched this script
+SCRIPTS = Path(__file__).parent
+ROOT = SCRIPTS.parent
+PIPELINE_STATUS = ROOT / "results" / "pipeline_status"
+PIPELINE_STATUS.mkdir(parents=True, exist_ok=True)
 
-errors_log = []
+env = {**os.environ, "TF_ENABLE_ONEDNN_OPTS": "0"}
 
-def run_step(script_name, step_label):
-    """Run a pipeline step and handle errors."""
+
+def run_step(script_name, step_label, fatal=True):
     print(f"\n{'='*70}")
     print(f"RUNNING: {step_label}")
-    print(f"{'='*70}")
-
-    result = subprocess.run(
-        [PY, str(SCRIPTS / script_name)],
-        env={**os.environ, "TF_ENABLE_ONEDNN_OPTS": "0"},
-        capture_output=False,  # Let output stream to console
-    )
-
+    print(f"{'='*70}", flush=True)
+    result = subprocess.run([PY, str(SCRIPTS / script_name)], env=env)
     if result.returncode != 0:
-        msg = f"{step_label} exited with code {result.returncode}"
-        print(f"[WARNING] {msg}")
-        errors_log.append(msg)
+        print(f"[{'FATAL' if fatal else 'WARNING'}] {step_label} exited with code {result.returncode}")
+        if fatal:
+            sys.exit(result.returncode)
         return False
-
     return True
 
 
-def check_prerequisite(json_file):
-    """Check if a prerequisite step completed successfully."""
-    path = RESULTS / json_file
-    if not path.exists():
-        return False
-    try:
-        with open(path) as f:
-            json.load(f)
-        return True
-    except:
-        return False
+def already_done(sentinel_file):
+    """Return True if a sentinel output file from a previous run exists."""
+    return (PIPELINE_STATUS / sentinel_file).exists()
 
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("FED-CRC-SEG PILOT — MASTER RUNNER")
+    print("FED-CRC-SEG — MASTER PIPELINE RUNNER")
+    print("DeCaF 2026: Federated Conformal Risk Control via Risk-Curve Shrinkage")
     print("=" * 70)
 
-    # Step 1: Download data (only if not already done)
-    if not check_prerequisite("step1_status.json"):
-        ok = run_step("step1_download_data.py", "Step 1: Data Download")
-        if not ok:
-            print("Step 1 failed — check logs above")
-            sys.exit(1)
+    # 01: Download FeTS-2022 data + partition CSV
+    if already_done("step1_status.json"):
+        print("01 already done (step1_status.json found) — skipping data download")
     else:
-        print("Step 1 already complete — skipping")
+        run_step("01_download_data.py", "01: Download FeTS-2022 data + partition CSV")
 
-    # Step 2: Parse partition
-    if not check_prerequisite("step2_subjects.json"):
-        ok = run_step("step2_parse_partition.py", "Step 2: Parse Partition & Find Subjects")
-        if not ok:
-            sys.exit(1)
+    # 02: Parse partition CSV and map subjects to institutions
+    if already_done("step2_subjects.json"):
+        print("02 already done (step2_subjects.json found) — skipping partition parse")
     else:
-        print("Step 2 already complete — skipping")
+        run_step("02_prepare_partitions.py", "02: Parse partition and map subjects to sites")
 
-    # Step 3: Download model
-    if not check_prerequisite("step3_model.json"):
-        ok = run_step("step3_download_model.py", "Step 3: Download Model")
-        if not ok:
-            sys.exit(1)
+    # 03: Download pre-trained SegResNet (MONAI bundle)
+    if already_done("step3_model.json"):
+        print("03 already done (step3_model.json found) — skipping model download")
     else:
-        print("Step 3 already complete — skipping")
+        run_step("03_download_model.py", "03: Download SegResNet MONAI bundle")
 
-    # Step 4: Inference
-    if not check_prerequisite("step4_status.json"):
-        ok = run_step("step4_inference.py", "Step 4: Inference + CRC Score Computation")
-        if not ok:
-            sys.exit(1)
-    else:
-        print("Step 4 already complete — skipping")
+    # 04: Run inference on all subjects → produces fets_final/volume_scores.pkl
+    run_step("04_run_inference.py", "04: Run SegResNet inference on FeTS-2022 (~6–12 h on GPU)")
 
-    # Step 5: CRC calibration
-    if not check_prerequisite("step5_crc_results.json"):
-        ok = run_step("step5_crc_calibration.py", "Step 5: CRC Calibration & Evaluation")
-        if not ok:
-            sys.exit(1)
-    else:
-        print("Step 5 already complete — skipping")
+    # 05: CRC calibration — fine 200-pt grid, 3 seeds, B1/B2/B3/Ours
+    run_step("05_crc_calibration.py", "05: CRC calibration (200-pt grid, 3 seeds)")
 
-    # Step 6: Figures
-    ok = run_step("step6_figures.py", "Step 6: Generate Figures")
-    if not ok:
-        print("Figure generation failed — continuing to verdict")
+    # 05b: LOO + Hoeffding/Bernstein correction variants (supplementary)
+    run_step("05b_loo_corrections.py", "05b: LOO + tighter correction variants", fatal=False)
 
-    # Step 7: Verdict
-    ok = run_step("step7_verdict.py", "Step 7: Write VERDICT.md")
-    if not ok:
-        print("Verdict failed")
-        sys.exit(1)
+    # 06: LOSO-CV n0 selection + lambda_fed + corr_k ablation + grid ablation
+    run_step("06_loso_ablations.py", "06: LOSO-CV and ablation experiments")
 
-    print("\n" + "="*70)
+    # 07: Budget allocation baseline
+    run_step("07_budget_allocation.py", "07: Budget allocation baseline")
+
+    # 08: Generate all paper figures
+    run_step("08_generate_figures.py", "08: Generate paper figures (paper_figures/)")
+
+    print("\n" + "=" * 70)
     print("ALL STEPS COMPLETE")
-    print("="*70)
-    print(f"Results in: C:/DeCaf/fed_crc_results/")
+    print("=" * 70)
+    print(f"Tables:  {ROOT / 'results' / 'tables'}/")
+    print(f"Figures: {ROOT / 'results' / 'figures'}/")
+    print(f"Paper figures (final): paper_figures/")
